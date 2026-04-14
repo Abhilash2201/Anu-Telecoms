@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+  VENDOR
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(USER)
+  createdAt DateTime  @default(now())
+  Address   Address[]
+  Cart      Cart?
+  orders    Order[]
+  Review    Review[]
+}
+
+model Product {
+  id           String      @id @default(cuid())
+  name         String
+  description  String
+  price        Float
+  discount     Float       @default(0)
+  stock        Int
+  categoryId   String
+  slug         String?
+  brand        String?
+  categorySlug String?
+  image        String?
+  images       String[]    @default([])
+  rating       Float       @default(0)
+  tags         String[]    @default([])
+  highlights   String[]    @default([])
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  CartItem     CartItem[]
+  orderItems   OrderItem[]
+  Category     Category    @relation(fields: [categoryId], references: [id])
+  Review       Review[]
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  total         Float
+  status        OrderStatus @default(PENDING)
+  paymentMethod String?
+  paymentStatus String?
+  trackingId    String?
+  address       Json?
+  createdAt     DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id])
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Address {
+  id      String @id
+  userId  String
+  street  String
+  city    String
+  state   String
+  pincode String
+  User    User   @relation(fields: [userId], references: [id])
+}
+
+model Cart {
+  id       String     @id
+  userId   String     @unique
+  User     User       @relation(fields: [userId], references: [id])
+  CartItem CartItem[]
+}
+
+model CartItem {
+  id        String  @id
+  cartId    String
+  productId String
+  quantity  Int
+  Cart      Cart    @relation(fields: [cartId], references: [id])
+  Product   Product @relation(fields: [productId], references: [id])
+}
+
+model Category {
+  id      String    @id
+  name    String    @unique
+  Product Product[]
+}
+
+model Review {
+  id        String  @id
+  userId    String
+  productId String
+  rating    Int
+  comment   String
+  Product   Product @relation(fields: [productId], references: [id])
+  User      User    @relation(fields: [userId], references: [id])
+}

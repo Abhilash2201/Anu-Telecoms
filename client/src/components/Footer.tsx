@@ -1,89 +1,105 @@
-import { Box, Container, Grid, Link, Stack, Typography } from '@mui/material';
-import CallIcon from '@mui/icons-material/Call';
-import EmailIcon from '@mui/icons-material/Email';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
+import styled from 'styled-components';
 
 export default function Footer() {
   return (
-    <Box sx={{ mt: 6, background: 'linear-gradient(180deg, #f7f9ff 0%, #e9efff 100%)', borderTop: '1px solid #dbe4ff' }}>
-      <Container maxWidth="xl" sx={{ py: 5 }}>
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={3}>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#123f9c', mb: 2 }}>
-              Anu Telecom
-            </Typography>
-            <Stack spacing={1.5} color="text.secondary">
-              <Stack direction="row" spacing={1} alignItems="center">
-                <LocationOnIcon fontSize="small" />
-                <Typography variant="body2">+46, MG Road, Nagamangala, Karnataka, 571422</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <CallIcon fontSize="small" />
-                <Typography variant="body2">+91 98451 23456</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <EmailIcon fontSize="small" />
-                <Typography variant="body2">info@anutelecom.com</Typography>
-              </Stack>
-            </Stack>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-              Quick Links
-            </Typography>
-            <Stack spacing={1}>
-              <Link underline="hover" color="inherit" href="#">
-                About Us
-              </Link>
-              <Link underline="hover" color="inherit" href="#">
-                Contact Us
-              </Link>
-              <Link underline="hover" color="inherit" href="#">
-                Privacy Policy
-              </Link>
-              <Link underline="hover" color="inherit" href="#">
-                Refund Policy
-              </Link>
-            </Stack>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-              Customer Service
-            </Typography>
-            <Stack spacing={1}>
-              <Link underline="hover" color="inherit" href="#">
-                FAQ
-              </Link>
-              <Link underline="hover" color="inherit" href="#">
-                Track Order
-              </Link>
-              <Link underline="hover" color="inherit" href="#">
-                Shipping Info
-              </Link>
-              <Link underline="hover" color="inherit" href="#">
-                Offers & Deals
-              </Link>
-            </Stack>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-              Contact Us
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Customer Support, Mon - Sat 8:00 AM to 9:00 PM
-            </Typography>
-            <Typography variant="h6" sx={{ mt: 2, color: '#123f9c', fontWeight: 800 }}>
-              +91 98451 23456
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              info@anutelecom.com
-            </Typography>
-          </Grid>
-        </Grid>
+    <Root>
+      <Container>
+        <Columns>
+          <Col>
+            <Title>Anu Telecom</Title>
+            <Line>+46, MG Road, Nagamangala, Karnataka, 571422</Line>
+            <Line>+91 98451 23456</Line>
+            <Line>info@anutelecom.com</Line>
+          </Col>
+          <Col>
+            <ColTitle>Quick Links</ColTitle>
+            <LinkItem href="#">About Us</LinkItem>
+            <LinkItem href="#">Contact Us</LinkItem>
+            <LinkItem href="#">Privacy Policy</LinkItem>
+            <LinkItem href="#">Refund Policy</LinkItem>
+          </Col>
+          <Col>
+            <ColTitle>Customer Service</ColTitle>
+            <LinkItem href="#">FAQ</LinkItem>
+            <LinkItem href="#">Track Order</LinkItem>
+            <LinkItem href="#">Shipping Info</LinkItem>
+            <LinkItem href="#">Offers & Deals</LinkItem>
+          </Col>
+          <Col>
+            <ColTitle>Contact Us</ColTitle>
+            <Line>Customer Support, Mon-Sat 8:00 AM - 9:00 PM</Line>
+            <Highlight>+91 98451 23456</Highlight>
+            <Line>info@anutelecom.com</Line>
+          </Col>
+        </Columns>
       </Container>
-      <Box sx={{ bgcolor: '#13255a', color: '#fff', textAlign: 'center', py: 2 }}>
-        <Typography variant="body2">Â© 2024 Anu Telecom Nagamangala. All Rights Reserved.</Typography>
-      </Box>
-    </Box>
+      <BottomBar>© 2024 Anu Telecom Nagamangala. All Rights Reserved.</BottomBar>
+    </Root>
   );
 }
+
+const Root = styled.footer`
+  margin-top: 48px;
+  background: linear-gradient(180deg, #f7f9ff, #e9efff);
+  border-top: 1px solid var(--border);
+`;
+
+const Container = styled.div`
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 34px 20px;
+`;
+
+const Columns = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px;
+
+  @media (max-width: 960px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const Col = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const Title = styled.h3`
+  margin: 0 0 6px;
+  font-size: 34px;
+  font-weight: 900;
+  color: #123f9c;
+`;
+
+const ColTitle = styled.h4`
+  margin: 0 0 6px;
+  font-size: 24px;
+`;
+
+const Line = styled.div`
+  color: #56607a;
+  line-height: 1.5;
+`;
+
+const LinkItem = styled.a`
+  color: #2a365a;
+`;
+
+const Highlight = styled.div`
+  font-size: 28px;
+  font-weight: 800;
+  color: #123f9c;
+`;
+
+const BottomBar = styled.div`
+  text-align: center;
+  background: #13255a;
+  color: #fff;
+  padding: 14px 12px;
+  font-size: 14px;
+`;

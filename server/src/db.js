@@ -1,19 +1,27 @@
-import pg from 'pg';
-import dotenv from 'dotenv';
+import './config/env.js';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 
-dotenv.config();
+const globalForPrisma = globalThis;
 
-const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL
+});
 
-export async function connectDb() {
-  try {
-    await pool.query('SELECT 1');
-    console.log('Connected to database');
-  } catch (error) {
-    console.error('Database connection failed, using demo data:', error.message);
-    // Do not exit, allow fallback to demo data
-  }
+const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === 'production' ? ['error'] : ['warn', 'error']
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
 }
 
-export default pool;
+export async function connectDb() {
+  await prisma.$connect();
+  console.log('Connected to PostgreSQL via Prisma');
+}
+
+export default prisma;

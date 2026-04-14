@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '../api/apiClient';
 
-type UserRole = 'admin' | 'customer';
+type UserRole = 'USER' | 'ADMIN' | 'VENDOR';
 
 interface AuthUser {
   id: string;
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         token,
         isAuthenticated: Boolean(user && token),
-        isAdmin: user?.role === 'admin',
+        isAdmin: user?.role === 'ADMIN',
         loading,
         login,
         register,

@@ -1,8 +1,9 @@
 export interface Category {
   id: string;
   name: string;
-  slug: string;
-  description: string;
+  slug?: string;
+  description?: string;
+  productCount?: number;
 }
 
 export interface Product {
@@ -13,7 +14,10 @@ export interface Product {
   category: string;
   categorySlug: string;
   price: number;
-  image: string;
+  discount?: number;
+  discountedPrice?: number;
+  image: string | null;
+  images?: string[];
   description: string;
   stock: number;
   rating: number;
@@ -21,19 +25,37 @@ export interface Product {
   highlights: string[];
 }
 
+export interface ProductListResponse {
+  items: Product[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
 export interface StorefrontResponse {
   store: {
     name: string;
     tagline: string;
-    serviceAreas: string[];
     supportPhone: string;
   };
   architecture: {
     type: string;
     roles: string[];
-    modules: Array<{ title: string; description: string }>;
-    orderFlow: string[];
+    modules: string[];
   };
   categories: Category[];
   featuredProducts: Product[];
+  adminSnapshot: {
+    metrics: {
+      activeProducts: number;
+      lowStockProducts: number;
+      openOrders: number;
+      monthlyRevenue: number;
+    };
+  };
 }

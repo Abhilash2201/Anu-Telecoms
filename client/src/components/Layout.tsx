@@ -1,13 +1,6 @@
-import { AppBar, Badge, Box, Button, Container, InputBase, Stack, Toolbar, Typography } from '@mui/material';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
-import PersonIcon from '@mui/icons-material/Person';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
-import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
-import SearchIcon from '@mui/icons-material/Search';
-import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
-import LogoutIcon from '@mui/icons-material/Logout';
-import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import { useState } from 'react';
+import styled from 'styled-components';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import Footer from './Footer';
@@ -42,138 +35,207 @@ export default function Layout({ children }: Props) {
   const navigationItems = isAdmin ? adminNav : customerNav;
 
   const handleSearch = () => {
-    navigate(`/?q=${encodeURIComponent(search)}`);
+    navigate(`/?search=${encodeURIComponent(search)}`);
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f7ff' }}>
-      <AppBar position="sticky" elevation={0} sx={{ bgcolor: '#1a4dc4' }}>
-        <Container maxWidth="xl">
-          <Toolbar sx={{ minHeight: { xs: 76, md: 88 }, display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-            <Box component={RouterLink} to="/" sx={{ textDecoration: 'none', color: '#fff' }}>
-              <Typography sx={{ fontSize: { xs: 26, md: 34 }, fontWeight: 900, lineHeight: 1 }}>
-                ANU TELECOM
-              </Typography>
-              <Typography sx={{ letterSpacing: 4, fontSize: 15, fontWeight: 500, opacity: 0.95 }}>
-                NAGAMANGALA
-              </Typography>
-            </Box>
-
-            <Stack direction="row" spacing={{ xs: 1, md: 2 }} alignItems="center" sx={{ color: '#fff', flexWrap: 'wrap' }}>
-              {!isAdmin ? (
-                <Button
-                  component={RouterLink}
-                  to={isAuthenticated ? '/account' : '/login'}
-                  color="inherit"
-                  startIcon={<PersonIcon />}
-                  sx={{ textTransform: 'none', fontWeight: 700 }}
-                >
-                  {isAuthenticated ? user?.name || 'Account' : 'Login'}
-                </Button>
-              ) : null}
-              {!isAdmin ? (
-                <Button color="inherit" startIcon={<FavoriteBorderIcon />} sx={{ textTransform: 'none', fontWeight: 700 }}>
-                  Wishlist
-                </Button>
-              ) : null}
-              {isAuthenticated ? (
-                <Button
-                  color="inherit"
-                  startIcon={isAdmin ? <DashboardCustomizeIcon /> : <ReceiptLongIcon />}
-                  sx={{ textTransform: 'none', fontWeight: 700 }}
-                  component={RouterLink}
-                  to={isAdmin ? '/admin' : '/orders'}
-                >
-                  {isAdmin ? 'Admin' : 'Orders'}
-                </Button>
-              ) : null}
-              <Button
-                component={RouterLink}
-                to="/cart"
-                startIcon={<ShoppingCartOutlinedIcon />}
-                sx={{
-                  bgcolor: '#ff7a00',
-                  color: '#fff',
-                  px: 2.25,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 800,
-                  '&:hover': { bgcolor: '#ef6c00' }
-                }}
-              >
-                Cart ({getItemCount()})
-              </Button>
-              {isAuthenticated ? (
-                <Button color="inherit" startIcon={<LogoutIcon />} onClick={logout} sx={{ textTransform: 'none', fontWeight: 700 }}>
-                  Logout
-                </Button>
-              ) : null}
-            </Stack>
-          </Toolbar>
+    <Shell>
+      <TopHeader>
+        <Container>
+          <Logo to="/">
+            <LogoTitle>ANU TELECOM</LogoTitle>
+            <LogoSubtitle>NAGAMANGALA</LogoSubtitle>
+          </Logo>
+          <TopActions>
+            {!isAdmin ? (
+              <ActionLink to={isAuthenticated ? '/account' : '/login'}>{isAuthenticated ? user?.name || 'Account' : 'Login'}</ActionLink>
+            ) : null}
+            {!isAdmin ? <ActionMuted>Wishlist</ActionMuted> : null}
+            {isAuthenticated ? <ActionLink to={isAdmin ? '/admin' : '/orders'}>{isAdmin ? 'Admin' : 'Orders'}</ActionLink> : null}
+            <CartButton to="/cart">Cart ({getItemCount()})</CartButton>
+            {isAuthenticated ? <ActionButton onClick={logout}>Logout</ActionButton> : null}
+          </TopActions>
         </Container>
-      </AppBar>
+      </TopHeader>
 
-      <Box sx={{ bgcolor: '#fff', borderBottom: '1px solid #dbe5ff', boxShadow: '0 10px 20px rgba(9, 30, 66, 0.04)' }}>
-        <Container maxWidth="xl">
-          <Toolbar sx={{ minHeight: 64, justifyContent: 'space-between', gap: 2, px: '0 !important', flexWrap: 'wrap' }}>
-            <Stack direction="row" spacing={{ xs: 1, md: 3 }} sx={{ overflowX: 'auto', py: 1 }}>
+      <NavWrap>
+        <Container>
+          <NavBar>
+            <NavList>
               {navigationItems.map((item) => {
                 const isActive = location.pathname === item.to && item.label === 'Home';
                 return (
-                  <Button
-                    key={item.label}
-                    component={RouterLink}
-                    to={item.to}
-                    color="inherit"
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: isActive ? 800 : 600,
-                      color: '#1b2436',
-                      borderBottom: isActive ? '3px solid #1a4dc4' : '3px solid transparent',
-                      borderRadius: 0,
-                      px: 1,
-                      minWidth: 'auto'
-                    }}
-                  >
+                  <NavItem key={item.label} to={item.to} $active={isActive}>
                     {item.label}
-                  </Button>
+                  </NavItem>
                 );
               })}
-            </Stack>
-
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                border: '1px solid #d4dcf2',
-                borderRadius: 2,
-                px: 2,
-                py: 0.5,
-                minWidth: { xs: '100%', md: 320 },
-                bgcolor: '#fff'
-              }}
-            >
-              <InputBase
+            </NavList>
+            <SearchBox>
+              <SearchInput
                 placeholder="Search for products..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                sx={{ flex: 1 }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    handleSearch();
-                  }
+                  if (event.key === 'Enter') handleSearch();
                 }}
               />
-              <Button onClick={handleSearch} sx={{ minWidth: 'auto', color: '#123f9c' }}>
-                <SearchIcon />
-              </Button>
-            </Box>
-          </Toolbar>
+              <SearchButton onClick={handleSearch}>Search</SearchButton>
+            </SearchBox>
+          </NavBar>
         </Container>
-      </Box>
+      </NavWrap>
 
-      <Box sx={{ pb: 2 }}>{children}</Box>
+      <Main>
+        <Container>{children}</Container>
+      </Main>
       <Footer />
-    </Box>
+    </Shell>
   );
 }
+
+const Shell = styled.div`
+  min-height: 100vh;
+`;
+
+const Container = styled.div`
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 20px;
+`;
+
+const TopHeader = styled.header`
+  background: linear-gradient(90deg, var(--brand-blue-dark), var(--brand-blue));
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+
+  ${Container} {
+    min-height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+`;
+
+const Logo = styled(RouterLink)`
+  display: grid;
+  gap: 2px;
+`;
+
+const LogoTitle = styled.div`
+  font-size: clamp(28px, 2.1vw, 42px);
+  font-weight: 900;
+  letter-spacing: 1px;
+  line-height: 1;
+`;
+
+const LogoSubtitle = styled.div`
+  font-size: 14px;
+  letter-spacing: 5px;
+  font-weight: 600;
+`;
+
+const TopActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+`;
+
+const ActionBase = styled(RouterLink)`
+  font-weight: 600;
+  color: #fff;
+`;
+
+const ActionLink = styled(ActionBase)``;
+
+const ActionMuted = styled.span`
+  font-weight: 600;
+  opacity: 0.9;
+`;
+
+const ActionButton = styled.button`
+  border: 0;
+  color: #fff;
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+`;
+
+const CartButton = styled(RouterLink)`
+  background: var(--brand-orange);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 800;
+`;
+
+const NavWrap = styled.div`
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+`;
+
+const NavBar = styled.div`
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 0;
+  }
+`;
+
+const NavList = styled.div`
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+`;
+
+const NavItem = styled(RouterLink)<{ $active?: boolean }>`
+  padding: 16px 14px 12px;
+  font-weight: 700;
+  color: #253254;
+  border-bottom: 3px solid ${({ $active }) => ($active ? 'var(--brand-blue)' : 'transparent')};
+  white-space: nowrap;
+`;
+
+const SearchBox = styled.div`
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 320px;
+  background: #fff;
+
+  @media (max-width: 900px) {
+    min-width: 100%;
+  }
+`;
+
+const SearchInput = styled.input`
+  border: 0;
+  outline: none;
+  padding: 11px 12px;
+  flex: 1;
+  min-width: 0;
+`;
+
+const SearchButton = styled.button`
+  border: 0;
+  background: #f1f5ff;
+  color: #1e3268;
+  font-weight: 700;
+  padding: 11px 14px;
+  cursor: pointer;
+`;
+
+const Main = styled.main`
+  padding: 24px 0 10px;
+`;
