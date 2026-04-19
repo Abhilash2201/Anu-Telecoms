@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useReducer, useState } from 'react';
+import { Alert, Snackbar } from '@mui/material';
 import api from '../api/apiClient';
 import { useAuth } from './AuthContext';
 
@@ -76,6 +77,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, { items: [] });
   const { isAuthenticated } = useAuth();
   const storageKey = 'cart_guest';
+  const [toast, setToast] = useState<string>('');
+  const [toastOpen, setToastOpen] = useState(false);
 
   const loadGuestCart = () => {
     const savedCart = localStorage.getItem(storageKey);
@@ -97,19 +100,35 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       loadGuestCart();
       return;
     }
-
     const response = await api.get('/cart');
     const items = (response.data?.cart?.items || []).map(mapServerItem);
     dispatch({ type: 'SET_ITEMS', items });
   };
 
   useEffect(() => {
-    refreshCart().catch((error) => {
-      console.error('Failed to refresh cart:', error);
+    const mergeAndRefresh = async () => {
       if (!isAuthenticated) {
         loadGuestCart();
+        return;
       }
-    });
+      // Merge any guest cart items into the server cart before loading
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const guestItems: CartItem[] = JSON.parse(saved);
+          await Promise.allSettled(
+            guestItems.map(item =>
+              api.post('/cart/items', { productId: item.productId, quantity: item.quantity })
+            )
+          );
+          localStorage.removeItem(storageKey);
+        } catch {
+          // ignore merge errors — server cart still loads
+        }
+      }
+      await refreshCart();
+    };
+    mergeAndRefresh().catch(console.error);
   }, [isAuthenticated]);
 
   const addToCart = async (product: Product) => {
@@ -129,11 +148,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       dispatch({ type: 'SET_ITEMS', items: nextItems });
       saveGuestCart(nextItems);
-      return;
+    } else {
+      await api.post('/cart/items', { productId: product.id, quantity: 1 });
+      await refreshCart();
     }
 
-    await api.post('/cart/items', { productId: product.id, quantity: 1 });
-    await refreshCart();
+    setToast(`"${product.name}" added to cart`);
+    setToastOpen(true);
   };
 
   const removeFromCart = async (id: string) => {
@@ -199,7 +220,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [state, isAuthenticated]
   );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={2500}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setToastOpen(false)} severity="success" variant="filled" sx={{ width: '100%' }}>
+          {toast}
+        </Alert>
+      </Snackbar>
+    </CartContext.Provider>
+  );
 }
 
 export function useCart() {

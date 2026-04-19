@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useWishlist } from '../context/WishlistContext';
 import Footer from './Footer';
 
 interface Props {
@@ -11,31 +12,50 @@ interface Props {
 
 const customerNav = [
   { label: 'Home', to: '/' },
-  { label: 'Mobiles', to: '/' },
-  { label: 'Appliances', to: '/' },
-  { label: 'Accessories', to: '/' },
-  { label: 'Brands', to: '/' },
-  { label: 'Offers', to: '/' }
+  { label: 'Mobiles', to: '/shop?category=cat-mobiles' },
+  { label: 'Televisions', to: '/shop?category=cat-tvs' },
+  { label: 'Appliances', to: '/shop?category=cat-appliances' },
+  { label: 'Brands', to: '/shop?sortBy=name&sortOrder=asc' },
+  { label: 'Offers', to: '/shop?sortBy=discount&sortOrder=desc' }
 ];
 
 const adminNav = [
   { label: 'Dashboard', to: '/admin' },
-  { label: 'Orders', to: '/orders' },
-  { label: 'Catalog', to: '/' },
-  { label: 'Customers', to: '/account' }
+  { label: 'Orders', to: '/admin?tab=orders' },
+  { label: 'Catalog', to: '/admin?tab=products' },
+  { label: 'Customers', to: '/admin?tab=customers' }
 ];
 
 export default function Layout({ children }: Props) {
   const { getItemCount } = useCart();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { count: wishlistCount } = useWishlist();
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
   const navigationItems = isAdmin ? adminNav : customerNav;
 
+  const isNavActive = (to: string): boolean => {
+    const [toPath, toSearch] = to.split('?');
+    if (location.pathname !== toPath) return false;
+    if (!toSearch) {
+      if (to === '/admin') {
+        const tab = new URLSearchParams(location.search).get('tab');
+        return !tab || tab === 'dashboard';
+      }
+      return true;
+    }
+    const toParams = new URLSearchParams(toSearch);
+    const current = new URLSearchParams(location.search);
+    for (const [key, value] of toParams.entries()) {
+      if (current.get(key) !== value) return false;
+    }
+    return true;
+  };
+
   const handleSearch = () => {
-    navigate(`/?search=${encodeURIComponent(search)}`);
+    navigate(`/shop?search=${encodeURIComponent(search)}`);
   };
 
   return (
@@ -50,7 +70,7 @@ export default function Layout({ children }: Props) {
             {!isAdmin ? (
               <ActionLink to={isAuthenticated ? '/account' : '/login'}>{isAuthenticated ? user?.name || 'Account' : 'Login'}</ActionLink>
             ) : null}
-            {!isAdmin ? <ActionMuted>Wishlist</ActionMuted> : null}
+            {!isAdmin ? <ActionLink to="/wishlist">♡ Wishlist{wishlistCount > 0 ? ` (${wishlistCount})` : ''}</ActionLink> : null}
             {isAuthenticated ? <ActionLink to={isAdmin ? '/admin' : '/orders'}>{isAdmin ? 'Admin' : 'Orders'}</ActionLink> : null}
             <CartButton to="/cart">Cart ({getItemCount()})</CartButton>
             {isAuthenticated ? <ActionButton onClick={logout}>Logout</ActionButton> : null}
@@ -62,14 +82,11 @@ export default function Layout({ children }: Props) {
         <Container>
           <NavBar>
             <NavList>
-              {navigationItems.map((item) => {
-                const isActive = location.pathname === item.to && item.label === 'Home';
-                return (
-                  <NavItem key={item.label} to={item.to} $active={isActive}>
-                    {item.label}
-                  </NavItem>
-                );
-              })}
+              {navigationItems.map((item) => (
+                <NavItem key={item.label} to={item.to} $active={isNavActive(item.to)}>
+                  {item.label}
+                </NavItem>
+              ))}
             </NavList>
             <SearchBox>
               <SearchInput

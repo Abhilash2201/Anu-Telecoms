@@ -98,6 +98,36 @@ export async function createOrder(req, res) {
   }
 }
 
+export async function cancelOrder(req, res) {
+  const { id } = req.params;
+  const order = await prisma.order.findUnique({ where: { id } });
+
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+  if (order.userId !== req.user.id) return res.status(403).json({ message: 'Forbidden' });
+
+  const cancellable = ['PENDING', 'CONFIRMED'];
+  if (!cancellable.includes(order.status)) {
+    return res.status(400).json({ message: `Cannot cancel an order with status ${order.status}` });
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const cancelled = await tx.order.update({
+      where: { id },
+      data: { status: 'CANCELLED' }
+    });
+    const items = await tx.orderItem.findMany({ where: { orderId: id } });
+    for (const item of items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stock: { increment: item.quantity } }
+      });
+    }
+    return cancelled;
+  });
+
+  return res.json(updated);
+}
+
 export async function getOrders(req, res) {
   const userOrders = await prisma.order.findMany({
     where: {

@@ -51,6 +51,14 @@ async function resolveCategoryId(product) {
   return createdCategory.id;
 }
 
+export async function getCustomers(req, res) {
+  const customers = await prisma.user.findMany({
+    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    orderBy: { createdAt: 'desc' }
+  });
+  return res.json(customers);
+}
+
 export async function getAdminDashboard(req, res) {
   const [activeProducts, lowStockProducts, openOrders, revenue, users, vendors] = await Promise.all([
     prisma.product.count({ where: { isActive: true } }),
@@ -75,6 +83,34 @@ export async function getAdminDashboard(req, res) {
       vendors
     }
   });
+}
+
+const VALID_STATUSES = ['PENDING', 'PAID', 'CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+
+export async function updateOrderStatus(req, res) {
+  const { id } = req.params;
+  const { status, trackingId } = req.body;
+
+  if (status && !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ message: 'Invalid order status' });
+  }
+
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const updated = await prisma.order.update({
+    where: { id },
+    data: {
+      ...(status && { status }),
+      ...(trackingId !== undefined && { trackingId: String(trackingId).trim() || null })
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      items: { include: { product: true } }
+    }
+  });
+
+  return res.json(updated);
 }
 
 export async function getAdminOrders(req, res) {

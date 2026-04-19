@@ -38,6 +38,7 @@ export async function getProducts(req, res) {
     minPrice,
     maxPrice,
     minDiscount,
+    minRating,
     page = 1,
     limit = 12,
     sortBy = 'createdAt',
@@ -54,9 +55,11 @@ export async function getProducts(req, res) {
   const parsedMinPrice = minPrice !== undefined ? Number(minPrice) : undefined;
   const parsedMaxPrice = maxPrice !== undefined ? Number(maxPrice) : undefined;
   const parsedMinDiscount = minDiscount !== undefined ? Number(minDiscount) : undefined;
+  const parsedMinRating = minRating !== undefined ? Number(minRating) : undefined;
   const hasMinPrice = parsedMinPrice !== undefined && !Number.isNaN(parsedMinPrice);
   const hasMaxPrice = parsedMaxPrice !== undefined && !Number.isNaN(parsedMaxPrice);
   const hasMinDiscount = parsedMinDiscount !== undefined && !Number.isNaN(parsedMinDiscount);
+  const hasMinRating = parsedMinRating !== undefined && !Number.isNaN(parsedMinRating);
   const normalizedSortOrder = String(sortOrder).toLowerCase() === 'asc' ? 'asc' : 'desc';
 
   const where = { isActive: true };
@@ -103,6 +106,10 @@ export async function getProducts(req, res) {
 
   if (hasMinDiscount) {
     where.discount = { gte: parsedMinDiscount };
+  }
+
+  if (hasMinRating) {
+    where.rating = { gte: parsedMinRating };
   }
 
   const orderByMap = {

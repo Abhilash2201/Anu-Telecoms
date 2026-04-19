@@ -15,7 +15,7 @@ function CartPage() {
           Your Cart
         </Typography>
         <Typography>Your cart is empty.</Typography>
-        <Button variant="contained" sx={{ mt: 2 }} onClick={() => navigate('/')}>
+        <Button variant="contained" sx={{ mt: 2 }} onClick={() => navigate('/shop')}>
           Continue Shopping
         </Button>
       </Box>
@@ -34,7 +34,7 @@ function CartPage() {
               <CardMedia
                 component="img"
                 sx={{ width: 100, height: 100, objectFit: 'cover' }}
-                image={item.product.image}
+                image={item.product.image ?? undefined}
                 alt={item.product.name}
               />
               <CardContent sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -43,7 +43,16 @@ function CartPage() {
                   <Typography variant="body2" color="text.secondary">
                     {item.product.brand} • {item.product.category}
                   </Typography>
-                  <Typography variant="subtitle1">{formatCurrency(item.product.price)}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      {formatCurrency((item.product.discountedPrice ?? item.product.price) * item.quantity)}
+                    </Typography>
+                    {item.product.discount && item.product.discount > 0 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
+                        {formatCurrency(item.product.price * item.quantity)}
+                      </Typography>
+                    )}
+                  </Box>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <TextField

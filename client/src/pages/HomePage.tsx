@@ -1,462 +1,288 @@
-import { useEffect, useMemo, useState } from 'react';
-import styled from 'styled-components';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import styled, { keyframes } from 'styled-components';
+import { Link as RouterLink } from 'react-router-dom';
 import api from '../api/apiClient';
 import ProductCard from '../components/ProductCard';
-import { Category, Product, ProductListResponse } from '../types/store';
+import { Category, Product } from '../types/store';
 
-type ProductQuery = {
-  page: number;
-  limit: number;
-  search: string;
-  category: string;
-  brand: string;
-  minPrice?: number;
-  maxPrice?: number;
-  sortBy: string;
-  sortOrder: 'asc' | 'desc';
+interface StoreInfo {
+  name: string;
+  tagline: string;
+  supportPhone: string;
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'cat-mobiles':    'linear-gradient(135deg,#1a4fd6 0%,#4f8ef7 100%)',
+  'cat-tvs':        'linear-gradient(135deg,#7b2ff7 0%,#b76ef7 100%)',
+  'cat-appliances': 'linear-gradient(135deg,#0a9e6b 0%,#2dd9a0 100%)'
+};
+const CATEGORY_ICONS: Record<string, string> = {
+  'cat-mobiles':    '📱',
+  'cat-tvs':        '📺',
+  'cat-appliances': '🏠'
 };
 
-const bannerCards = [
-  { title: 'Mobiles', subtitle: 'Starting at Rs 5,999' },
-  { title: 'Home Appliances', subtitle: 'Best Prices' },
-  { title: 'Refrigerators', subtitle: 'Up to 40% off' },
-  { title: 'TVs & Audio', subtitle: 'Starting Rs 12,999' }
+const PROMO_BANNERS = [
+  { label: 'NEW ARRIVALS', title: 'Latest Smartphones', sub: 'Explore the newest models', to: '/shop?sortBy=createdAt&sortOrder=desc', bg: 'linear-gradient(120deg,#1443c8,#4c8ef8)' },
+  { label: 'BEST DEALS',   title: 'Up to 20% Off',     sub: 'Limited time offers',         to: '/shop?sortBy=discount&sortOrder=desc', bg: 'linear-gradient(120deg,#e05a00,#f7a23b)' },
+  { label: 'TOP RATED',    title: 'Customer Favourites', sub: 'Highest rated products',    to: '/shop?sortBy=rating&sortOrder=desc',   bg: 'linear-gradient(120deg,#0a7f5b,#2dd47f)' }
 ];
 
 function HomePage() {
-  const [params, setParams] = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [store, setStore] = useState<StoreInfo | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState<ProductListResponse['pagination']>({
-    page: 1,
-    limit: 12,
-    totalItems: 0,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false
-  });
-
-  const query: ProductQuery = {
-    page: Number(params.get('page') || 1),
-    limit: Number(params.get('limit') || 12),
-    search: params.get('search') || '',
-    category: params.get('category') || 'all',
-    brand: params.get('brand') || '',
-    minPrice: params.get('minPrice') ? Number(params.get('minPrice')) : undefined,
-    maxPrice: params.get('maxPrice') ? Number(params.get('maxPrice')) : undefined,
-    sortBy: params.get('sortBy') || 'createdAt',
-    sortOrder: params.get('sortOrder') === 'asc' ? 'asc' : 'desc'
-  };
+  const [featured, setFeatured] = useState<Product[]>([]);
+  const [topDeals, setTopDeals] = useState<Product[]>([]);
 
   useEffect(() => {
-    api
-      .get('/categories')
-      .then((res) => {
-        setCategories(res.data?.categories || []);
-      })
-      .catch(console.error);
+    api.get('/storefront').then(res => {
+      setStore(res.data.store);
+      setCategories(res.data.categories || []);
+      setFeatured(res.data.featuredProducts || []);
+    }).catch(console.error);
+
+    api.get('/products?sortBy=discount&sortOrder=desc&limit=4').then(res => {
+      setTopDeals(res.data.items || []);
+    }).catch(console.error);
   }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    api
-      .get('/products', {
-        params: {
-          page: query.page,
-          limit: query.limit,
-          search: query.search || undefined,
-          category: query.category,
-          brand: query.brand || undefined,
-          minPrice: query.minPrice,
-          maxPrice: query.maxPrice,
-          sortBy: query.sortBy,
-          sortOrder: query.sortOrder
-        }
-      })
-      .then((res) => {
-        setProducts(res.data?.items || []);
-        setPagination(res.data?.pagination || pagination);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [params.toString()]);
-
-  const availableBrands = useMemo(
-    () => Array.from(new Set(products.map((product) => product.brand).filter(Boolean))).sort(),
-    [products]
-  );
-
-  const updateQuery = (updates: Partial<ProductQuery>) => {
-    const next = new URLSearchParams(params);
-    const setOrDelete = (key: keyof ProductQuery, value: string | number | undefined) => {
-      if (value === undefined || value === '' || value === 'all') next.delete(String(key));
-      else next.set(String(key), String(value));
-    };
-
-    setOrDelete('search', updates.search ?? query.search);
-    setOrDelete('category', updates.category ?? query.category);
-    setOrDelete('brand', updates.brand ?? query.brand);
-    setOrDelete('minPrice', updates.minPrice ?? query.minPrice);
-    setOrDelete('maxPrice', updates.maxPrice ?? query.maxPrice);
-    setOrDelete('sortBy', updates.sortBy ?? query.sortBy);
-    setOrDelete('sortOrder', updates.sortOrder ?? query.sortOrder);
-    setOrDelete('limit', updates.limit ?? query.limit);
-    setOrDelete('page', updates.page ?? 1);
-
-    setParams(next);
-  };
 
   return (
     <Page>
+      {/* ── Hero ── */}
       <Hero>
         <HeroContent>
-          <HeroTitle>Big Festive Sale! Up to 50% Off</HeroTitle>
-          <HeroText>Get exciting offers on mobiles, appliances and accessories.</HeroText>
-          <HeroButton>Shop Now</HeroButton>
+          <HeroPill>Big Festive Sale 🎉</HeroPill>
+          <HeroTitle>Up to 50% Off on<br />Top Electronics</HeroTitle>
+          <HeroSub>Mobiles · Televisions · Appliances · Accessories</HeroSub>
+          <HeroActions>
+            <HeroCTA to="/shop">Shop Now</HeroCTA>
+            <HeroSecondary to="/shop?sortBy=discount&sortOrder=desc">View Offers</HeroSecondary>
+          </HeroActions>
+          {store && (
+            <HeroContact>📞 {store.supportPhone} &nbsp;|&nbsp; Mon – Sat, 9 am – 7 pm</HeroContact>
+          )}
         </HeroContent>
-        <HeroGraphic />
+        <HeroVisual>
+          <HeroImage
+            src="https://dummyimage.com/760x480/1643c8/ffffff&text=Mobiles+%7C+TVs+%7C+Appliances"
+            alt="Anu Telecom Products"
+          />
+        </HeroVisual>
       </Hero>
 
-      <BannerGrid>
-        {bannerCards.map((card) => (
-          <BannerCard key={card.title}>
-            <BannerTitle>{card.title}</BannerTitle>
-            <BannerText>{card.subtitle}</BannerText>
-          </BannerCard>
+      {/* ── Category Cards ── */}
+      {categories.length > 0 && (
+        <Section>
+          <SectionHeader>
+            <SectionTitle>Shop by Category</SectionTitle>
+            <SectionLink to="/shop">View All →</SectionLink>
+          </SectionHeader>
+          <CategoryGrid>
+            {categories.map(cat => (
+              <CategoryCard key={cat.id} to={`/shop?category=${cat.id}`} $bg={CATEGORY_COLORS[cat.id] ?? 'linear-gradient(135deg,#253c78,#4a6fc0)'}>
+                <CatIcon>{CATEGORY_ICONS[cat.id] ?? '🛒'}</CatIcon>
+                <CatName>{cat.name}</CatName>
+                {cat.productCount !== undefined && <CatCount>{cat.productCount} products</CatCount>}
+                <CatCta>Shop Now →</CatCta>
+              </CategoryCard>
+            ))}
+          </CategoryGrid>
+        </Section>
+      )}
+
+      {/* ── Promo Banners ── */}
+      <PromoBanners>
+        {PROMO_BANNERS.map(b => (
+          <PromoBanner key={b.label} to={b.to} $bg={b.bg}>
+            <PromoLabel>{b.label}</PromoLabel>
+            <PromoTitle>{b.title}</PromoTitle>
+            <PromoSub>{b.sub}</PromoSub>
+            <PromoArrow>→</PromoArrow>
+          </PromoBanner>
         ))}
-      </BannerGrid>
+      </PromoBanners>
 
-      <ContentWrap>
-        <Sidebar>
-          <FilterBlock>
-            <FilterTitle>Category</FilterTitle>
-            <FilterOption $active={query.category === 'all'} onClick={() => updateQuery({ category: 'all' })}>
-              All
-            </FilterOption>
-            {categories.map((category) => (
-              <FilterOption
-                key={category.id}
-                $active={query.category === category.id}
-                onClick={() => updateQuery({ category: category.id })}
-              >
-                {category.name}
-              </FilterOption>
-            ))}
-          </FilterBlock>
-
-          <FilterBlock>
-            <FilterTitle>Price</FilterTitle>
-            <RangeRow>
-              <RangeInput
-                type="number"
-                placeholder="Min"
-                defaultValue={query.minPrice ?? ''}
-                onBlur={(event) => updateQuery({ minPrice: event.target.value ? Number(event.target.value) : undefined })}
-              />
-              <RangeInput
-                type="number"
-                placeholder="Max"
-                defaultValue={query.maxPrice ?? ''}
-                onBlur={(event) => updateQuery({ maxPrice: event.target.value ? Number(event.target.value) : undefined })}
-              />
-            </RangeRow>
-          </FilterBlock>
-
-          <FilterBlock>
-            <FilterTitle>Brand</FilterTitle>
-            {availableBrands.length === 0 ? <FilterHint>No brands in current result.</FilterHint> : null}
-            {availableBrands.map((brand) => (
-              <FilterOption key={brand} $active={query.brand === brand} onClick={() => updateQuery({ brand: query.brand === brand ? '' : brand })}>
-                {brand}
-              </FilterOption>
-            ))}
-          </FilterBlock>
-        </Sidebar>
-
-        <ProductsArea>
-          <ProductsHead>
-            <div>
-              <Heading>All Products</Heading>
-              <SubHead>
-                Showing {products.length} of {pagination.totalItems} products
-              </SubHead>
-            </div>
-            <SortSelect
-              value={`${query.sortBy}:${query.sortOrder}`}
-              onChange={(event) => {
-                const [sortBy, sortOrder] = event.target.value.split(':');
-                updateQuery({ sortBy, sortOrder: sortOrder as 'asc' | 'desc' });
-              }}
-            >
-              <option value="createdAt:desc">Newest</option>
-              <option value="price:asc">Price: Low to High</option>
-              <option value="price:desc">Price: High to Low</option>
-              <option value="discount:desc">Discount</option>
-              <option value="rating:desc">Rating</option>
-              <option value="name:asc">Name A-Z</option>
-            </SortSelect>
-          </ProductsHead>
-
-          {loading ? <LoadingBox>Loading products...</LoadingBox> : null}
-
+      {/* ── Featured Products ── */}
+      {featured.length > 0 && (
+        <Section>
+          <SectionHeader>
+            <SectionTitle>Featured Products</SectionTitle>
+            <SectionLink to="/shop">See All →</SectionLink>
+          </SectionHeader>
           <ProductGrid>
-            {products.map((product) => (
-              <ProductCard key={product.id} {...product} />
-            ))}
+            {featured.map(p => <ProductCard key={p.id} {...p} />)}
           </ProductGrid>
+        </Section>
+      )}
 
-          {!loading && products.length === 0 ? <LoadingBox>No products found for current filters.</LoadingBox> : null}
+      {/* ── Top Deals ── */}
+      {topDeals.length > 0 && (
+        <Section>
+          <SectionHeader>
+            <SectionTitle>🔥 Top Deals</SectionTitle>
+            <SectionLink to="/shop?sortBy=discount&sortOrder=desc">More Deals →</SectionLink>
+          </SectionHeader>
+          <ProductGrid>
+            {topDeals.map(p => <ProductCard key={p.id} {...p} />)}
+          </ProductGrid>
+        </Section>
+      )}
 
-          <PaginationWrap>
-            <PaginationButton disabled={!pagination.hasPrevPage} onClick={() => updateQuery({ page: query.page - 1 })}>
-              Prev
-            </PaginationButton>
-            <PageInfo>
-              Page {pagination.page} / {pagination.totalPages}
-            </PageInfo>
-            <PaginationButton disabled={!pagination.hasNextPage} onClick={() => updateQuery({ page: query.page + 1 })}>
-              Next
-            </PaginationButton>
-          </PaginationWrap>
-        </ProductsArea>
-      </ContentWrap>
+      {/* ── Trust Badges ── */}
+      <TrustRow>
+        {[
+          { icon: '🚚', title: 'Free Shipping',       sub: 'On orders over ₹500' },
+          { icon: '🔒', title: 'Secure Payments',      sub: '100% Safe & Protected' },
+          { icon: '✅', title: 'Genuine Products',     sub: 'Guaranteed Authentic' },
+          { icon: '↩️', title: '7-Day Return Policy', sub: 'Easy Returns within 7 days' }
+        ].map(b => (
+          <TrustCard key={b.title}>
+            <TrustIcon>{b.icon}</TrustIcon>
+            <div>
+              <TrustTitle>{b.title}</TrustTitle>
+              <TrustSub>{b.sub}</TrustSub>
+            </div>
+          </TrustCard>
+        ))}
+      </TrustRow>
     </Page>
   );
 }
 
 export default HomePage;
 
-const Page = styled.div`
-  display: grid;
-  gap: 18px;
-`;
+/* ─── Styles ─────────────────────────────────────────────────────────────── */
 
+const fadeUp = keyframes`from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; }`;
+
+const Page = styled.div`display:grid; gap:28px; animation:${fadeUp} 0.35s ease;`;
+
+/* Hero */
 const Hero = styled.section`
-  border-radius: 16px;
-  overflow: hidden;
-  background: radial-gradient(circle at 25% 20%, rgba(255, 171, 87, 0.35), transparent 28%),
-    linear-gradient(100deg, var(--brand-blue-dark), #2a67ec 55%, #8bc1ff);
+  border-radius: 18px; overflow: hidden;
+  background: linear-gradient(110deg, #0d2c8c 0%, #1a4fd6 45%, #4c8ef8 100%);
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  min-height: 320px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: 1fr 1fr;
+  min-height: 360px;
+  @media(max-width:860px){ grid-template-columns:1fr; }
 `;
-
 const HeroContent = styled.div`
-  padding: 38px;
-  color: #fff;
-  display: grid;
-  align-content: center;
-  gap: 12px;
+  padding: 44px 42px; color:#fff;
+  display:flex; flex-direction:column; justify-content:center; gap:14px;
 `;
-
+const HeroPill = styled.div`
+  display:inline-flex; align-items:center;
+  background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.35);
+  border-radius:20px; padding:5px 14px;
+  font-size:13px; font-weight:700; letter-spacing:0.3px;
+  width:fit-content;
+`;
 const HeroTitle = styled.h1`
-  margin: 0;
-  font-size: clamp(34px, 4vw, 66px);
-  line-height: 1.05;
+  margin:0; font-size:clamp(28px,3.5vw,48px);
+  font-weight:900; line-height:1.1; color:#fff;
+`;
+const HeroSub = styled.p`margin:0; font-size:15px; opacity:0.85;`;
+const HeroActions = styled.div`display:flex; gap:12px; flex-wrap:wrap;`;
+const HeroCTA = styled(RouterLink)`
+  background:var(--brand-orange); color:#fff;
+  border-radius:10px; padding:13px 26px;
+  font-weight:800; font-size:16px;
+  transition:background 0.15s;
+  &:hover{background:var(--brand-orange-dark);}
+`;
+const HeroSecondary = styled(RouterLink)`
+  background:rgba(255,255,255,0.15); color:#fff;
+  border:1px solid rgba(255,255,255,0.45);
+  border-radius:10px; padding:13px 22px;
+  font-weight:700; font-size:15px;
+  &:hover{background:rgba(255,255,255,0.25);}
+`;
+const HeroContact = styled.div`font-size:13px; opacity:0.7; margin-top:4px;`;
+const HeroVisual = styled.div`
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  @media(max-width:860px){display:none;}
+`;
+const HeroImage = styled.img`
+  max-width:100%; max-height:280px;
+  object-fit:contain; border-radius:12px;
 `;
 
-const HeroText = styled.p`
-  margin: 0;
-  font-size: 22px;
-  opacity: 0.95;
+/* Section */
+const Section = styled.section`display:grid; gap:16px;`;
+const SectionHeader = styled.div`
+  display:flex; justify-content:space-between; align-items:baseline;
+`;
+const SectionTitle = styled.h2`margin:0; font-size:20px; font-weight:800; color:#1a2540;`;
+const SectionLink = styled(RouterLink)`
+  font-size:13px; font-weight:700; color:var(--brand-blue);
+  &:hover{text-decoration:underline;}
 `;
 
-const HeroButton = styled.button`
-  margin-top: 8px;
-  border: 0;
-  width: fit-content;
-  color: #fff;
-  background: var(--brand-orange);
-  border-radius: 10px;
-  font-weight: 800;
-  font-size: 24px;
-  padding: 12px 20px;
-  cursor: pointer;
+/* Categories */
+const CategoryGrid = styled.div`
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:14px;
+`;
+const CategoryCard = styled(RouterLink)<{ $bg: string }>`
+  background:${p => p.$bg};
+  border-radius:14px; padding:24px 20px;
+  display:flex; flex-direction:column; gap:6px;
+  color:#fff; transition:transform 0.18s, box-shadow 0.18s;
+  &:hover{ transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,0.18); }
+`;
+const CatIcon = styled.div`font-size:32px;`;
+const CatName = styled.div`font-size:18px; font-weight:800;`;
+const CatCount = styled.div`font-size:12px; opacity:0.8;`;
+const CatCta = styled.div`margin-top:10px; font-size:13px; font-weight:700; opacity:0.9;`;
+
+/* Promo banners */
+const PromoBanners = styled.div`
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  @media(max-width:800px){grid-template-columns:1fr;}
+`;
+const PromoBanner = styled(RouterLink)<{ $bg: string }>`
+  background:${p => p.$bg};
+  border-radius:12px; padding:22px 24px;
+  color:#fff; display:flex; flex-direction:column; gap:4px;
+  position:relative; overflow:hidden;
+  transition:transform 0.18s;
+  &:hover{ transform:translateY(-2px); }
+`;
+const PromoLabel = styled.div`font-size:11px; font-weight:800; letter-spacing:1.5px; opacity:0.75; text-transform:uppercase;`;
+const PromoTitle = styled.div`font-size:20px; font-weight:900; line-height:1.2;`;
+const PromoSub = styled.div`font-size:13px; opacity:0.8;`;
+const PromoArrow = styled.div`
+  position:absolute; right:20px; top:50%; transform:translateY(-50%);
+  font-size:28px; opacity:0.5;
 `;
 
-const HeroGraphic = styled.div`
-  background: url('https://dummyimage.com/980x580/1f62ea/ffffff&text=Mobiles+%7C+TVs+%7C+Appliances') center/cover no-repeat;
-`;
-
-const BannerGrid = styled.section`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-
-  @media (max-width: 1000px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const BannerCard = styled.div`
-  min-height: 120px;
-  border-radius: 12px;
-  padding: 14px;
-  color: #fff;
-  display: grid;
-  align-content: center;
-  background: linear-gradient(100deg, #fc7f00, #2a67ec);
-`;
-
-const BannerTitle = styled.div`
-  font-weight: 800;
-  font-size: 30px;
-`;
-
-const BannerText = styled.div`
-  font-size: 22px;
-  opacity: 0.95;
-`;
-
-const ContentWrap = styled.section`
-  display: grid;
-  grid-template-columns: 290px 1fr;
-  gap: 16px;
-
-  @media (max-width: 1020px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const Sidebar = styled.aside`
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  display: grid;
-  gap: 14px;
-  align-self: start;
-`;
-
-const FilterBlock = styled.div`
-  border-top: 1px solid #eef2fb;
-  padding-top: 10px;
-
-  &:first-child {
-    border-top: 0;
-    padding-top: 0;
-  }
-`;
-
-const FilterTitle = styled.h3`
-  margin: 0 0 8px;
-  font-size: 27px;
-`;
-
-const FilterOption = styled.button<{ $active: boolean }>`
-  display: block;
-  width: 100%;
-  border: 0;
-  text-align: left;
-  background: ${({ $active }) => ($active ? '#eef3ff' : 'transparent')};
-  color: ${({ $active }) => ($active ? '#123a9d' : '#334060')};
-  border-radius: 8px;
-  padding: 8px 8px;
-  cursor: pointer;
-  font-weight: ${({ $active }) => ($active ? 700 : 500)};
-`;
-
-const FilterHint = styled.div`
-  font-size: 13px;
-  color: #7a849b;
-`;
-
-const RangeRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-`;
-
-const RangeInput = styled.input`
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px;
-`;
-
-const ProductsArea = styled.div`
-  display: grid;
-  gap: 12px;
-`;
-
-const ProductsHead = styled.div`
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-`;
-
-const Heading = styled.h2`
-  margin: 0;
-  font-size: 46px;
-`;
-
-const SubHead = styled.div`
-  color: #66708a;
-`;
-
-const SortSelect = styled.select`
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-`;
-
+/* Products */
 const ProductGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-
-  @media (max-width: 1280px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-  }
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  @media(max-width:1100px){grid-template-columns:repeat(3,minmax(0,1fr));}
+  @media(max-width:720px) {grid-template-columns:repeat(2,minmax(0,1fr));}
+  @media(max-width:420px) {grid-template-columns:1fr;}
 `;
 
-const LoadingBox = styled.div`
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  text-align: center;
-  color: #5f6b87;
+/* Trust Badges */
+const TrustRow = styled.div`
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  @media(max-width:900px){grid-template-columns:repeat(2,1fr);}
+  @media(max-width:480px){grid-template-columns:1fr;}
 `;
-
-const PaginationWrap = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 10px;
+const TrustCard = styled.div`
+  background:#fff; border:1px solid var(--border);
+  border-radius:10px; padding:16px;
+  display:flex; align-items:center; gap:12px;
 `;
-
-const PaginationButton = styled.button`
-  border: 1px solid var(--border);
-  background: #fff;
-  border-radius: 8px;
-  padding: 7px 12px;
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-`;
-
-const PageInfo = styled.div`
-  font-weight: 600;
-`;
+const TrustIcon = styled.div`font-size:28px; flex-shrink:0;`;
+const TrustTitle = styled.div`font-size:13px; font-weight:700; color:#1a2540;`;
+const TrustSub = styled.div`font-size:11px; color:#7a849b; margin-top:2px;`;
