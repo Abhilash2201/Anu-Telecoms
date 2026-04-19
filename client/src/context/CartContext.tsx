@@ -82,7 +82,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const loadGuestCart = () => {
     const savedCart = localStorage.getItem(storageKey);
-    if (!savedCart) return;
+    if (!savedCart) {
+      dispatch({ type: 'CLEAR' });
+      return;
+    }
     try {
       const items: CartItem[] = JSON.parse(savedCart);
       dispatch({ type: 'SET_ITEMS', items });

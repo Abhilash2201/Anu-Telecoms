@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import api from '../api/apiClient';
 import ProductCard from '../components/ProductCard';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { Product, ProductListResponse } from '../types/store';
 
 type ProductQuery = {
@@ -235,14 +236,15 @@ function HomePage() {
             </SortSelect>
           </ProductsHead>
 
-          {loading && <StatusBox>Loading products…</StatusBox>}
-
           {!loading && products.length === 0 && (
             <StatusBox>No products found. <ClearInline onClick={clearAllFilters}>Clear filters</ClearInline></StatusBox>
           )}
 
           <ProductGrid>
-            {products.map(p => <ProductCard key={p.id} {...p} />)}
+            {loading
+              ? Array.from({ length: 10 }).map((_, i) => <ProductCardSkeleton key={i} />)
+              : products.map(p => <ProductCard key={p.id} {...p} />)
+            }
           </ProductGrid>
 
           {/* Numbered pagination */}
@@ -408,11 +410,12 @@ const ClearInline = styled.button`
 
 const ProductGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
-  @media (max-width: 1280px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  @media (max-width: 900px)  { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  @media (max-width: 500px)  { grid-template-columns: 1fr; }
+  @media (max-width: 1280px) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 1020px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 700px)  { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 420px)  { grid-template-columns: 1fr; }
 `;
 
 const PaginationRow = styled.div`

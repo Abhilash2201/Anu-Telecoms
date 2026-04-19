@@ -3,6 +3,7 @@ import styled, { keyframes } from 'styled-components';
 import { Link as RouterLink } from 'react-router-dom';
 import api from '../api/apiClient';
 import ProductCard from '../components/ProductCard';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { Category, Product } from '../types/store';
 
 interface StoreInfo {
@@ -11,21 +12,43 @@ interface StoreInfo {
   supportPhone: string;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'cat-mobiles':    'linear-gradient(135deg,#1a4fd6 0%,#4f8ef7 100%)',
-  'cat-tvs':        'linear-gradient(135deg,#7b2ff7 0%,#b76ef7 100%)',
-  'cat-appliances': 'linear-gradient(135deg,#0a9e6b 0%,#2dd9a0 100%)'
-};
-const CATEGORY_ICONS: Record<string, string> = {
-  'cat-mobiles':    '📱',
-  'cat-tvs':        '📺',
-  'cat-appliances': '🏠'
+const CATEGORY_META: Record<string, { overlay: string; img: string; icon: string }> = {
+  'cat-mobiles':    {
+    overlay: 'linear-gradient(135deg,rgba(20,67,200,0.78) 0%,rgba(76,142,248,0.65) 100%)',
+    img:     'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=480&h=300&fit=crop&q=80',
+    icon:    '📱'
+  },
+  'cat-tvs':        {
+    overlay: 'linear-gradient(135deg,rgba(100,30,200,0.78) 0%,rgba(180,100,240,0.65) 100%)',
+    img:     'https://images.unsplash.com/photo-1593359677879-a4bb92f4834c?w=480&h=300&fit=crop&q=80',
+    icon:    '📺'
+  },
+  'cat-appliances': {
+    overlay: 'linear-gradient(135deg,rgba(8,110,80,0.78) 0%,rgba(30,190,130,0.65) 100%)',
+    img:     'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=480&h=300&fit=crop&q=80',
+    icon:    '🏠'
+  }
 };
 
 const PROMO_BANNERS = [
-  { label: 'NEW ARRIVALS', title: 'Latest Smartphones', sub: 'Explore the newest models', to: '/shop?sortBy=createdAt&sortOrder=desc', bg: 'linear-gradient(120deg,#1443c8,#4c8ef8)' },
-  { label: 'BEST DEALS',   title: 'Up to 20% Off',     sub: 'Limited time offers',         to: '/shop?sortBy=discount&sortOrder=desc', bg: 'linear-gradient(120deg,#e05a00,#f7a23b)' },
-  { label: 'TOP RATED',    title: 'Customer Favourites', sub: 'Highest rated products',    to: '/shop?sortBy=rating&sortOrder=desc',   bg: 'linear-gradient(120deg,#0a7f5b,#2dd47f)' }
+  {
+    label: 'NEW ARRIVALS', title: 'Latest Smartphones', sub: 'Explore the newest models',
+    to: '/shop?sortBy=createdAt&sortOrder=desc',
+    overlay: 'linear-gradient(100deg,rgba(20,67,200,0.88) 0%,rgba(76,142,248,0.55) 100%)',
+    img: 'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=560&h=220&fit=crop&q=80'
+  },
+  {
+    label: 'BEST DEALS', title: 'Up to 20% Off', sub: 'Limited time offers',
+    to: '/shop?sortBy=discount&sortOrder=desc',
+    overlay: 'linear-gradient(100deg,rgba(190,70,0,0.88) 0%,rgba(240,150,40,0.55) 100%)',
+    img: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=560&h=220&fit=crop&q=80'
+  },
+  {
+    label: 'TOP RATED', title: 'Customer Favourites', sub: 'Highest rated products',
+    to: '/shop?sortBy=rating&sortOrder=desc',
+    overlay: 'linear-gradient(100deg,rgba(8,110,75,0.88) 0%,rgba(30,190,110,0.55) 100%)',
+    img: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=560&h=220&fit=crop&q=80'
+  }
 ];
 
 function HomePage() {
@@ -33,17 +56,18 @@ function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [featured, setFeatured] = useState<Product[]>([]);
   const [topDeals, setTopDeals] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
   useEffect(() => {
-    api.get('/storefront').then(res => {
-      setStore(res.data.store);
-      setCategories(res.data.categories || []);
-      setFeatured(res.data.featuredProducts || []);
-    }).catch(console.error);
-
-    api.get('/products?sortBy=discount&sortOrder=desc&limit=4').then(res => {
-      setTopDeals(res.data.items || []);
-    }).catch(console.error);
+    Promise.all([
+      api.get('/storefront'),
+      api.get('/products?sortBy=discount&sortOrder=desc&limit=5')
+    ]).then(([sf, deals]) => {
+      setStore(sf.data.store);
+      setCategories(sf.data.categories || []);
+      setFeatured(sf.data.featuredProducts || []);
+      setTopDeals(deals.data.items || []);
+    }).catch(console.error).finally(() => setLoadingProducts(false));
   }, []);
 
   return (
@@ -64,7 +88,7 @@ function HomePage() {
         </HeroContent>
         <HeroVisual>
           <HeroImage
-            src="https://dummyimage.com/760x480/1643c8/ffffff&text=Mobiles+%7C+TVs+%7C+Appliances"
+            src="https://images.unsplash.com/photo-1498049794561-7780e7231661?w=760&h=480&fit=crop&q=80"
             alt="Anu Telecom Products"
           />
         </HeroVisual>
@@ -78,14 +102,21 @@ function HomePage() {
             <SectionLink to="/shop">View All →</SectionLink>
           </SectionHeader>
           <CategoryGrid>
-            {categories.map(cat => (
-              <CategoryCard key={cat.id} to={`/shop?category=${cat.id}`} $bg={CATEGORY_COLORS[cat.id] ?? 'linear-gradient(135deg,#253c78,#4a6fc0)'}>
-                <CatIcon>{CATEGORY_ICONS[cat.id] ?? '🛒'}</CatIcon>
-                <CatName>{cat.name}</CatName>
-                {cat.productCount !== undefined && <CatCount>{cat.productCount} products</CatCount>}
-                <CatCta>Shop Now →</CatCta>
-              </CategoryCard>
-            ))}
+            {categories.map(cat => {
+              const meta = CATEGORY_META[cat.id] ?? {
+                overlay: 'linear-gradient(135deg,rgba(37,60,120,0.82),rgba(74,111,192,0.72))',
+                img: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=480&h=300&fit=crop&q=80',
+                icon: '🛒'
+              };
+              return (
+                <CategoryCard key={cat.id} to={`/shop?category=${cat.id}`} $overlay={meta.overlay} $img={meta.img}>
+                  <CatIcon>{meta.icon}</CatIcon>
+                  <CatName>{cat.name}</CatName>
+                  {cat.productCount !== undefined && <CatCount>{cat.productCount} products</CatCount>}
+                  <CatCta>Shop Now →</CatCta>
+                </CategoryCard>
+              );
+            })}
           </CategoryGrid>
         </Section>
       )}
@@ -93,7 +124,7 @@ function HomePage() {
       {/* ── Promo Banners ── */}
       <PromoBanners>
         {PROMO_BANNERS.map(b => (
-          <PromoBanner key={b.label} to={b.to} $bg={b.bg}>
+          <PromoBanner key={b.label} to={b.to} $overlay={b.overlay} $img={b.img}>
             <PromoLabel>{b.label}</PromoLabel>
             <PromoTitle>{b.title}</PromoTitle>
             <PromoSub>{b.sub}</PromoSub>
@@ -103,30 +134,32 @@ function HomePage() {
       </PromoBanners>
 
       {/* ── Featured Products ── */}
-      {featured.length > 0 && (
-        <Section>
-          <SectionHeader>
-            <SectionTitle>Featured Products</SectionTitle>
-            <SectionLink to="/shop">See All →</SectionLink>
-          </SectionHeader>
-          <ProductGrid>
-            {featured.map(p => <ProductCard key={p.id} {...p} />)}
-          </ProductGrid>
-        </Section>
-      )}
+      <Section>
+        <SectionHeader>
+          <SectionTitle>Featured Products</SectionTitle>
+          <SectionLink to="/shop">See All →</SectionLink>
+        </SectionHeader>
+        <ProductGrid>
+          {loadingProducts
+            ? Array.from({ length: 5 }).map((_, i) => <ProductCardSkeleton key={i} />)
+            : featured.map(p => <ProductCard key={p.id} {...p} />)
+          }
+        </ProductGrid>
+      </Section>
 
       {/* ── Top Deals ── */}
-      {topDeals.length > 0 && (
-        <Section>
-          <SectionHeader>
-            <SectionTitle>🔥 Top Deals</SectionTitle>
-            <SectionLink to="/shop?sortBy=discount&sortOrder=desc">More Deals →</SectionLink>
-          </SectionHeader>
-          <ProductGrid>
-            {topDeals.map(p => <ProductCard key={p.id} {...p} />)}
-          </ProductGrid>
-        </Section>
-      )}
+      <Section>
+        <SectionHeader>
+          <SectionTitle>🔥 Top Deals</SectionTitle>
+          <SectionLink to="/shop?sortBy=discount&sortOrder=desc">More Deals →</SectionLink>
+        </SectionHeader>
+        <ProductGrid>
+          {loadingProducts
+            ? Array.from({ length: 5 }).map((_, i) => <ProductCardSkeleton key={i} />)
+            : topDeals.map(p => <ProductCard key={p.id} {...p} />)
+          }
+        </ProductGrid>
+      </Section>
 
       {/* ── Trust Badges ── */}
       <TrustRow>
@@ -225,12 +258,15 @@ const CategoryGrid = styled.div`
   grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
   gap:14px;
 `;
-const CategoryCard = styled(RouterLink)<{ $bg: string }>`
-  background:${p => p.$bg};
+const CategoryCard = styled(RouterLink)<{ $overlay: string; $img: string }>`
+  background: ${p => p.$overlay}, url(${p => p.$img});
+  background-size: cover;
+  background-position: center;
   border-radius:14px; padding:24px 20px;
   display:flex; flex-direction:column; gap:6px;
   color:#fff; transition:transform 0.18s, box-shadow 0.18s;
-  &:hover{ transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,0.18); }
+  min-height: 160px;
+  &:hover{ transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,0.25); }
 `;
 const CatIcon = styled.div`font-size:32px;`;
 const CatName = styled.div`font-size:18px; font-weight:800;`;
@@ -244,11 +280,14 @@ const PromoBanners = styled.div`
   gap:12px;
   @media(max-width:800px){grid-template-columns:1fr;}
 `;
-const PromoBanner = styled(RouterLink)<{ $bg: string }>`
-  background:${p => p.$bg};
+const PromoBanner = styled(RouterLink)<{ $overlay: string; $img: string }>`
+  background: ${p => p.$overlay}, url(${p => p.$img});
+  background-size: cover;
+  background-position: center;
   border-radius:12px; padding:22px 24px;
   color:#fff; display:flex; flex-direction:column; gap:4px;
   position:relative; overflow:hidden;
+  min-height: 120px;
   transition:transform 0.18s;
   &:hover{ transform:translateY(-2px); }
 `;
@@ -263,10 +302,11 @@ const PromoArrow = styled.div`
 /* Products */
 const ProductGrid = styled.div`
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-columns:repeat(5,minmax(0,1fr));
   gap:12px;
-  @media(max-width:1100px){grid-template-columns:repeat(3,minmax(0,1fr));}
-  @media(max-width:720px) {grid-template-columns:repeat(2,minmax(0,1fr));}
+  @media(max-width:1280px){grid-template-columns:repeat(4,minmax(0,1fr));}
+  @media(max-width:1020px){grid-template-columns:repeat(3,minmax(0,1fr));}
+  @media(max-width:700px) {grid-template-columns:repeat(2,minmax(0,1fr));}
   @media(max-width:420px) {grid-template-columns:1fr;}
 `;
 

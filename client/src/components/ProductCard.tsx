@@ -79,7 +79,7 @@ const Card = styled.article`
 
 const ImageWrap = styled(RouterLink)`
   position: relative;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 3;
   background: #f6f9ff;
   display: flex;
   align-items: center;
@@ -122,9 +122,13 @@ const WishBtn = styled.button<{ $active: boolean }>`
 `;
 
 const Img = styled.img`
-  max-width: 80%;
-  max-height: 80%;
+  max-width: 93%;
+  max-height: 93%;
   object-fit: contain;
+  transition: transform 0.32s ease;
+  ${ImageWrap}:hover & {
+    transform: scale(1.07);
+  }
 `;
 
 const Body = styled.div`
@@ -204,7 +208,13 @@ const CartBtn = styled.button`
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.18s, transform 0.18s, background 0.15s;
+  ${Card}:hover & {
+    opacity: 1;
+    transform: translateY(0);
+  }
   &:hover { background: var(--brand-orange-dark); }
-  &:disabled { opacity: 0.45; cursor: not-allowed; }
+  &:disabled { opacity: 0.35; cursor: not-allowed; }
 `;
