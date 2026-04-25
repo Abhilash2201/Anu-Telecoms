@@ -8,6 +8,8 @@ function slugify(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+// Hardcoded store profile — no DB table needed for a single-vendor store.
+// Update these values here when the store's contact details change.
 const storeProfile = {
   name: 'Anu Telecom',
   tagline: 'Single-store electronics commerce with one catalog and one fulfillment team.',
@@ -46,6 +48,8 @@ export async function getStorefrontSnapshot(req, res) {
       })
     ]);
 
+  // Deduplicate categories using a Map keyed on slug — multiple products in the
+  // same category would otherwise produce duplicate entries in the category list.
   const categories = Array.from(
     new Map(
       productCategories.map((category) => {

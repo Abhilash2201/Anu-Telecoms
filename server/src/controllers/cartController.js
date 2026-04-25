@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import prisma from "../db.js";
 
+// Validates that a quantity is a positive integer — rejects floats, negatives, and strings
 function parseQuantity(value) {
   const quantity = Number(value);
   if (!Number.isInteger(quantity) || quantity <= 0) {
@@ -9,6 +10,8 @@ function parseQuantity(value) {
   return quantity;
 }
 
+// Each user has at most one cart (enforced by the unique constraint on Cart.userId).
+// We create it lazily on first add-to-cart rather than at registration time.
 async function getOrCreateCart(userId) {
   const existingCart = await prisma.cart.findUnique({
     where: { userId },
@@ -26,6 +29,9 @@ async function getOrCreateCart(userId) {
   });
 }
 
+// Transforms a raw Prisma cart record into the shape the frontend expects.
+// Price is read live from the Product row (not stored on CartItem) so it
+// always reflects the current selling price.
 function mapCartResponse(cart) {
   const items = (cart?.CartItem || []).map((item) => {
     const product = item.Product;
@@ -62,6 +68,7 @@ function mapCartResponse(cart) {
   };
 }
 
+// Fetches the cart with all nested relations needed to build a full cart response
 async function getCartWithItems(userId) {
   return prisma.cart.findUnique({
     where: { userId },
@@ -75,6 +82,7 @@ async function getCartWithItems(userId) {
   });
 }
 
+// Returns the current user's cart, or an empty cart shape if none exists yet
 export async function getCartController(req, res) {
   const cart = await getCartWithItems(req.user.id);
   return res.json({ cart: mapCartResponse(cart) });
@@ -98,6 +106,8 @@ export async function addToCartController(req, res) {
   }
 
   const cart = await getOrCreateCart(req.user.id);
+
+  // If the product is already in the cart, add to existing quantity instead of creating a duplicate row
   const existingItem = await prisma.cartItem.findFirst({
     where: {
       cartId: cart.id,
@@ -108,6 +118,8 @@ export async function addToCartController(req, res) {
   const nextQuantity = existingItem
     ? existingItem.quantity + parsedQuantity
     : parsedQuantity;
+
+  // Guard against adding more than available stock
   if (product.stock < nextQuantity) {
     return res
       .status(400)
@@ -144,6 +156,7 @@ export async function updateCartItemController(req, res) {
       .json({ message: "itemId and a valid quantity are required" });
   }
 
+  // Fetch with Cart relation so we can verify the item belongs to the requesting user
   const cartItem = await prisma.cartItem.findUnique({
     where: { id: itemId },
     include: {
@@ -181,6 +194,7 @@ export async function removeCartItemController(req, res) {
     return res.status(400).json({ message: "itemId is required" });
   }
 
+  // Verify ownership before deleting — prevents users from deleting other users' cart items
   const cartItem = await prisma.cartItem.findUnique({
     where: { id: itemId },
     include: {
@@ -195,6 +209,8 @@ export async function removeCartItemController(req, res) {
   try {
     await prisma.cartItem.delete({ where: { id: itemId } });
   } catch (err) {
+    // P2025 means the record was already deleted (race condition: two delete
+    // requests fired before either completed). Treat it as a successful removal.
     if (err?.code === "P2025") {
       return res.status(404).json({ message: "Cart item not found" });
     }

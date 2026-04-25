@@ -317,6 +317,10 @@ const Sidebar = styled.aside`
   gap: 0;
   position: sticky;
   top: 16px;
+  z-index: 10;
+  @media (max-width: 1020px) {
+    position: static;
+  }
 `;
 
 const FilterHeader = styled.div`

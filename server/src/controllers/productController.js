@@ -8,6 +8,9 @@ function slugify(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+// Transforms a raw Prisma product row into the DTO shape the frontend expects.
+// Strips the nested Category relation, flattens category name/slug to top-level fields,
+// and computes discountedPrice on the fly so it's never stored and never stale.
 function toProductDto(product) {
   const categoryName = product.Category?.name || product.category || '';
   const categorySlug = product.categorySlug || slugify(categoryName);
@@ -15,6 +18,7 @@ function toProductDto(product) {
   const images = Array.isArray(product.images) ? product.images : [];
   const image = product.image || images[0] || null;
   const discount = Number(product.discount || 0);
+  // Math.max(0,...) guards against negative prices if discount > 100
   const discountedPrice = Math.max(0, Number(product.price) - (Number(product.price) * discount) / 100);
 
   return {
@@ -73,6 +77,8 @@ export async function getProducts(req, res) {
 
   if (normalizedCategory && normalizedCategory !== 'all') {
     where.AND = where.AND || [];
+    // Match against categorySlug, categoryId, OR category name so that URLs like
+    // ?category=cat-mobiles and ?category=Mobiles both work
     where.AND.push({
       OR: [
         { categorySlug: normalizedCategory },
@@ -83,6 +89,7 @@ export async function getProducts(req, res) {
   }
 
   if (normalizedBrand) {
+    // Support comma-separated brands: ?brand=Apple,Samsung
     const brands = normalizedBrand
       .split(',')
       .map((item) => item.trim())
@@ -122,6 +129,7 @@ export async function getProducts(req, res) {
 
   const orderBy = orderByMap[String(sortBy)] || orderByMap.createdAt;
 
+  // Run count and data fetch in parallel — avoids a second sequential round-trip to the DB
   const [totalItems, products] = await Promise.all([
     prisma.product.count({ where }),
     prisma.product.findMany({

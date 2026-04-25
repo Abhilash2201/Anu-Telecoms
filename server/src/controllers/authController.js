@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import prisma from '../db.js';
 
+// Throws at call-time (not at module load) so the server starts up even without
+// the secret, but fails loudly on the first auth request.
 function requireJwtSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -11,6 +13,8 @@ function requireJwtSecret() {
   return secret;
 }
 
+// Strips the password hash before sending user data to the client.
+// Always use this instead of returning the raw DB row.
 function sanitizeUser(user) {
   return {
     id: user.id,
@@ -21,6 +25,9 @@ function sanitizeUser(user) {
   };
 }
 
+// JWT subject is userId; email and role are included in the payload so the
+// frontend can read them without an extra /me call on every page load.
+// 7-day expiry balances security with UX (users don't get logged out daily).
 function signToken(user) {
   return jwt.sign({ email: user.email, role: user.role }, requireJwtSecret(), {
     subject: user.id,
@@ -30,6 +37,7 @@ function signToken(user) {
 
 export async function registerController(req, res) {
   const { name, email, password } = req.body;
+  // Normalize email so "User@Example.com" and "user@example.com" resolve to the same account
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const trimmedName = String(name || '').trim();
 
@@ -46,13 +54,15 @@ export async function registerController(req, res) {
     return res.status(409).json({ message: 'User already exists' });
   }
 
+  // bcrypt cost factor 12 — strong enough against brute force while staying
+  // under ~300ms on typical server hardware (cost 10 = ~100ms, 12 = ~400ms)
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
     data: {
       name: trimmedName || 'Customer',
       email: normalizedEmail,
       password: passwordHash,
-      role: 'USER'
+      role: 'USER' // all self-registered users start as USER; ADMIN is assigned manually
     }
   });
 
@@ -79,6 +89,8 @@ export async function loginController(req, res) {
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
+  // Return the same message whether the email or password is wrong — prevents
+  // attackers from using different error messages to enumerate valid email addresses
   if (!isPasswordValid) {
     return res.status(401).json({ message: 'Invalid credentials' });
   }
@@ -176,10 +188,13 @@ export async function updateAddressController(req, res) {
     where: { id }
   });
 
+  // Return 404 (not 403) when the address belongs to another user — avoids
+  // leaking the information that the address ID exists in the system
   if (!existing || existing.userId !== req.user.id) {
     return res.status(404).json({ message: 'Address not found' });
   }
 
+  // Build the update object with only the fields that were provided (partial update)
   const data = {};
   if (street !== undefined) data.street = String(street).trim();
   if (city !== undefined) data.city = String(city).trim();

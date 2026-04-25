@@ -4,9 +4,14 @@ import styled from 'styled-components';
 interface Props { children: ReactNode; }
 interface State { hasError: boolean; }
 
+// Must be a class component — React's error boundary API (getDerivedStateFromError,
+// componentDidCatch) is not available as hooks. Function components cannot catch
+// render-phase errors in their own subtree.
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false };
 
+  // Called during the render phase when a descendant throws.
+  // Returns new state to trigger the fallback UI on the next render.
   static getDerivedStateFromError(): State {
     return { hasError: true };
   }
@@ -18,6 +23,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           <Code>500</Code>
           <Title>Something went wrong</Title>
           <Sub>An unexpected error occurred. Please refresh the page.</Sub>
+          {/* Hard reload resets the error boundary state since the component unmounts */}
           <Btn onClick={() => window.location.reload()}>Refresh</Btn>
         </Wrap>
       );
@@ -36,10 +42,10 @@ const Wrap = styled.div`
   text-align: center;
   padding: 40px 20px;
 `;
-const Code = styled.div`font-size: 72px; font-weight: 900; color: #e0e5f0; line-height: 1;`;
+const Code  = styled.div`font-size: 72px; font-weight: 900; color: #e0e5f0; line-height: 1;`;
 const Title = styled.h1`margin: 0; font-size: 22px; font-weight: 800; color: #1a2540;`;
-const Sub = styled.p`margin: 0; font-size: 14px; color: #7a849b;`;
-const Btn = styled.button`
+const Sub   = styled.p`margin: 0; font-size: 14px; color: #7a849b;`;
+const Btn   = styled.button`
   margin-top: 8px;
   background: var(--brand-blue);
   color: #fff;

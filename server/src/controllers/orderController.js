@@ -41,15 +41,19 @@ export async function createOrder(req, res) {
     orderLineItems.push({
       productId: product.id,
       quantity,
-      price: product.price
+      price: product.price // snapshot price at order time so future price changes don't alter history
     });
   }
 
+  // Verify the client-supplied total against the server-computed total as a
+  // tamper check — rejects requests where the client tried to manipulate pricing
   if (total !== undefined && Number(total) !== computedTotal) {
     return res.status(400).json({ message: 'Order total does not match the calculated total' });
   }
 
   try {
+    // Wrap order creation and stock decrement in a transaction so a partial
+    // failure (stock runs out mid-loop) rolls everything back atomically
     const order = await prisma.$transaction(async (tx) => {
       const createdOrder = await tx.order.create({
         data: {
@@ -70,17 +74,16 @@ export async function createOrder(req, res) {
       });
 
       for (const item of orderLineItems) {
+        // Optimistic stock lock: the WHERE condition requires stock >= quantity so that
+        // if another concurrent order depleted stock between our check and this update,
+        // count === 0 and we throw, rolling back the entire transaction.
         const updated = await tx.product.updateMany({
           where: {
             id: item.productId,
-            stock: {
-              gte: item.quantity
-            }
+            stock: { gte: item.quantity }
           },
           data: {
-            stock: {
-              decrement: item.quantity
-            }
+            stock: { decrement: item.quantity }
           }
         });
 
@@ -105,11 +108,14 @@ export async function cancelOrder(req, res) {
   if (!order) return res.status(404).json({ message: 'Order not found' });
   if (order.userId !== req.user.id) return res.status(403).json({ message: 'Forbidden' });
 
+  // Once an order is PACKED or beyond it's already being fulfilled — too late to cancel
   const cancellable = ['PENDING', 'CONFIRMED'];
   if (!cancellable.includes(order.status)) {
     return res.status(400).json({ message: `Cannot cancel an order with status ${order.status}` });
   }
 
+  // Cancel and restore stock in one transaction — if the stock increment fails
+  // the order status stays unchanged and nothing is lost
   const updated = await prisma.$transaction(async (tx) => {
     const cancelled = await tx.order.update({
       where: { id },

@@ -1,6 +1,9 @@
 import { randomUUID } from 'crypto';
 import prisma from '../db.js';
 
+// Keeps the denormalized Product.rating column in sync after every review write.
+// We store the average on the product row so product listing queries don't need
+// an expensive JOIN + GROUP BY to compute ratings for hundreds of products.
 async function recalcProductRating(productId) {
   const agg = await prisma.review.aggregate({
     where: { productId },
@@ -38,6 +41,7 @@ export async function createReview(req, res) {
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product) return res.status(404).json({ message: 'Product not found' });
 
+  // One review per user per product — enforced here in the application layer
   const existing = await prisma.review.findFirst({ where: { productId, userId } });
   if (existing) return res.status(409).json({ message: 'You have already reviewed this product' });
 
@@ -58,6 +62,7 @@ export async function deleteReview(req, res) {
   if (!review || review.productId !== productId) {
     return res.status(404).json({ message: 'Review not found' });
   }
+  // Admins can delete any review (e.g. for moderation); users can only delete their own
   if (review.userId !== userId && req.user.role !== 'ADMIN') {
     return res.status(403).json({ message: 'Forbidden' });
   }

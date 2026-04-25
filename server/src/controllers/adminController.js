@@ -20,6 +20,9 @@ function normalizeImages(product) {
   return [];
 }
 
+// Resolves or creates a category from whatever the admin passes in.
+// Accepts categoryId, category name, or categorySlug — auto-creates if not found.
+// This lets the admin create products without first manually creating categories.
 async function resolveCategoryId(product) {
   if (product.categoryId) {
     return product.categoryId;
@@ -41,6 +44,7 @@ async function resolveCategoryId(product) {
     return existingCategory.id;
   }
 
+  // Auto-create the category so admins don't need a separate step
   const createdCategory = await prisma.category.create({
     data: {
       id: slugify(normalizedName) || `cat-${Date.now()}`,
@@ -60,6 +64,7 @@ export async function getCustomers(req, res) {
 }
 
 export async function getAdminDashboard(req, res) {
+  // All six metrics queries run in parallel — single round-trip to the DB
   const [activeProducts, lowStockProducts, openOrders, revenue, users, vendors] = await Promise.all([
     prisma.product.count({ where: { isActive: true } }),
     prisma.product.count({ where: { isActive: true, stock: { lte: 5 } } }),
@@ -136,6 +141,8 @@ export async function getAdminOrders(req, res) {
   return res.json(orders);
 }
 
+// Single endpoint for create / update / delete, controlled by the `action` field.
+// Keeps the admin API surface small and mirrors how the frontend AdminDashboard sends requests.
 export async function manageProducts(req, res) {
   const { action, product } = req.body;
   if (!action || !product) {
