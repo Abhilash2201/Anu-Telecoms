@@ -1,5 +1,5 @@
-import { randomUUID } from 'crypto';
-import prisma from '../db.js';
+import { randomUUID } from "crypto";
+import prisma from "../db.js";
 
 function parseQuantity(value) {
   const quantity = Number(value);
@@ -11,7 +11,7 @@ function parseQuantity(value) {
 
 async function getOrCreateCart(userId) {
   const existingCart = await prisma.cart.findUnique({
-    where: { userId }
+    where: { userId },
   });
 
   if (existingCart) {
@@ -21,8 +21,8 @@ async function getOrCreateCart(userId) {
   return prisma.cart.create({
     data: {
       id: randomUUID(),
-      userId
-    }
+      userId,
+    },
   });
 }
 
@@ -39,12 +39,14 @@ function mapCartResponse(cart) {
         id: product.id,
         name: product.name,
         slug: product.slug,
-        image: product.image || (Array.isArray(product.images) ? product.images[0] : null),
+        image:
+          product.image ||
+          (Array.isArray(product.images) ? product.images[0] : null),
         images: Array.isArray(product.images) ? product.images : [],
         discount: Number(product.discount || 0),
         stock: product.stock,
-        isActive: product.isActive
-      }
+        isActive: product.isActive,
+      },
     };
   });
 
@@ -56,7 +58,7 @@ function mapCartResponse(cart) {
     userId: cart?.userId || null,
     items,
     subtotal,
-    totalQuantity
+    totalQuantity,
   };
 }
 
@@ -66,10 +68,10 @@ async function getCartWithItems(userId) {
     include: {
       CartItem: {
         include: {
-          Product: true
-        }
-      }
-    }
+          Product: true,
+        },
+      },
+    },
   });
 }
 
@@ -82,34 +84,40 @@ export async function addToCartController(req, res) {
   const { productId, quantity = 1 } = req.body;
   const parsedQuantity = parseQuantity(quantity);
   if (!productId || parsedQuantity === null) {
-    return res.status(400).json({ message: 'productId and a valid quantity are required' });
+    return res
+      .status(400)
+      .json({ message: "productId and a valid quantity are required" });
   }
 
   const product = await prisma.product.findUnique({
-    where: { id: String(productId) }
+    where: { id: String(productId) },
   });
 
   if (!product || !product.isActive) {
-    return res.status(404).json({ message: 'Product not found' });
+    return res.status(404).json({ message: "Product not found" });
   }
 
   const cart = await getOrCreateCart(req.user.id);
   const existingItem = await prisma.cartItem.findFirst({
     where: {
       cartId: cart.id,
-      productId: product.id
-    }
+      productId: product.id,
+    },
   });
 
-  const nextQuantity = existingItem ? existingItem.quantity + parsedQuantity : parsedQuantity;
+  const nextQuantity = existingItem
+    ? existingItem.quantity + parsedQuantity
+    : parsedQuantity;
   if (product.stock < nextQuantity) {
-    return res.status(400).json({ message: 'Requested quantity exceeds available stock' });
+    return res
+      .status(400)
+      .json({ message: "Requested quantity exceeds available stock" });
   }
 
   if (existingItem) {
     await prisma.cartItem.update({
       where: { id: existingItem.id },
-      data: { quantity: nextQuantity }
+      data: { quantity: nextQuantity },
     });
   } else {
     await prisma.cartItem.create({
@@ -117,8 +125,8 @@ export async function addToCartController(req, res) {
         id: randomUUID(),
         cartId: cart.id,
         productId: product.id,
-        quantity: parsedQuantity
-      }
+        quantity: parsedQuantity,
+      },
     });
   }
 
@@ -131,32 +139,36 @@ export async function updateCartItemController(req, res) {
   const { quantity } = req.body;
   const parsedQuantity = parseQuantity(quantity);
   if (!itemId || parsedQuantity === null) {
-    return res.status(400).json({ message: 'itemId and a valid quantity are required' });
+    return res
+      .status(400)
+      .json({ message: "itemId and a valid quantity are required" });
   }
 
   const cartItem = await prisma.cartItem.findUnique({
     where: { id: itemId },
     include: {
       Cart: true,
-      Product: true
-    }
+      Product: true,
+    },
   });
 
   if (!cartItem || cartItem.Cart.userId !== req.user.id) {
-    return res.status(404).json({ message: 'Cart item not found' });
+    return res.status(404).json({ message: "Cart item not found" });
   }
 
   if (!cartItem.Product.isActive) {
-    return res.status(400).json({ message: 'Product is inactive' });
+    return res.status(400).json({ message: "Product is inactive" });
   }
 
   if (cartItem.Product.stock < parsedQuantity) {
-    return res.status(400).json({ message: 'Requested quantity exceeds available stock' });
+    return res
+      .status(400)
+      .json({ message: "Requested quantity exceeds available stock" });
   }
 
   await prisma.cartItem.update({
     where: { id: itemId },
-    data: { quantity: parsedQuantity }
+    data: { quantity: parsedQuantity },
   });
 
   const updatedCart = await getCartWithItems(req.user.id);
@@ -166,23 +178,28 @@ export async function updateCartItemController(req, res) {
 export async function removeCartItemController(req, res) {
   const { itemId } = req.params;
   if (!itemId) {
-    return res.status(400).json({ message: 'itemId is required' });
+    return res.status(400).json({ message: "itemId is required" });
   }
 
   const cartItem = await prisma.cartItem.findUnique({
     where: { id: itemId },
     include: {
-      Cart: true
-    }
+      Cart: true,
+    },
   });
 
   if (!cartItem || cartItem.Cart.userId !== req.user.id) {
-    return res.status(404).json({ message: 'Cart item not found' });
+    return res.status(404).json({ message: "Cart item not found" });
   }
 
-  await prisma.cartItem.delete({
-    where: { id: itemId }
-  });
+  try {
+    await prisma.cartItem.delete({ where: { id: itemId } });
+  } catch (err) {
+    if (err?.code === "P2025") {
+      return res.status(404).json({ message: "Cart item not found" });
+    }
+    throw err;
+  }
 
   const updatedCart = await getCartWithItems(req.user.id);
   return res.json({ cart: mapCartResponse(updatedCart) });
